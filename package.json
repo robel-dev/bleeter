@@ -1,0 +1,23 @@
+{
+  "name": "developr",
+  "version": "1.0.0",
+  "description": "social media for devs",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "server": "nodemon server.js"
+  },
+  "author": "Robel Gebrewold",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.19.1",
+    "express": "^4.17.2",
+    "gravatar": "^1.8.2",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^6.1.4",
+    "passport": "^0.5.2",
+    "passport-jwt": "^4.0.0",
+    "validator": "^13.7.0"
+  }
+}
