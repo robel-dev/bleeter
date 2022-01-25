@@ -1,8 +1,8 @@
 const express = require("express");
 const passport = require("passport");
 const router = express.Router();
-const Post = require("../../models/post.model");
-
+const Post = require("../../models/post.model").Post;
+const UserData = require("../../models/user.data.model");
 const validatePostInput = require("../../validation/post.validation");
 // @route   GET api/posts/test
 // @desc    Tests posts route
@@ -45,7 +45,27 @@ router.get(
   }
 );
 
-//add get all post of specific user(my tweets)
+// @route   GET api/posts/saved/all
+// @desc    fetch all saved posts
+// @access   private
+router.get(
+  "/saved/all",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    const errors = {};
+    UserData.findOne({ userId: req.user.id }).then((userData) => {
+      if (!userData) {
+        return res.status(404).json({ msg: "No saved data." });
+      } else if (userData.savedPosts.length == 0) {
+        return res.json({ msg: "No saved posts." });
+      }
+
+      res.json(userData.savedPosts);
+    });
+  }
+);
+
+//add get all post of specific user(my bleets)
 //---------------------here-----------------------------------------------------
 
 // @route   POST api/posts/
@@ -117,6 +137,40 @@ router.post(
   }
 );
 
+// @route   POST api/posts/save/:post_id
+// @desc    save a post
+// @access   private
+router.post(
+  "/save/:post_id",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    Post.findOne({ _id: req.params.post_id }).then((post) => {
+      UserData.findOne({ userId: req.user.id }).then((userData) => {
+        if (!userData) {
+          const newUserData = new UserData({
+            userId: req.user.id,
+          });
+
+          newUserData.savedPosts.unshift(post);
+          newUserData.save().then((userData) => res.json(userData));
+        } else {
+          //check if post is saved
+          if (
+            userData.savedPosts.filter((post) => post._id == req.params.post_id)
+              .length > 0
+          ) {
+            //user has already saved
+            return res.status(400).json({ msg: "user has already saved post" });
+          }
+
+          userData.savedPosts.unshift(post);
+          userData.save().then((userData) => res.json(userData));
+        }
+      });
+    });
+  }
+);
+
 // @route   delete api/posts/:id
 // @desc    delete a post
 // @access   private
@@ -138,7 +192,7 @@ router.delete(
 // @route   POST api/posts/unlike/:post_id
 // @desc    Unlike post
 // @access  Private
-router.post(
+router.delete(
   "/unlike/:post_id",
   passport.authenticate("jwt", { session: false }),
   (req, res) => {
@@ -168,6 +222,33 @@ router.post(
         .catch((err) =>
           res.status(404).json({ postnotfound: "No post found" })
         );
+    });
+  }
+);
+// @route   POST api/posts/remove-saved/:post_id
+// @desc    remove saved post
+// @access  Private
+router.delete(
+  "/remove-saved/:post_id",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    UserData.findOne({ userId: req.user.id }).then((userData) => {
+      if (
+        userData.savedPosts.filter(
+          (post) => post._id.toString() === req.params.post_id
+        ).length === 0
+      ) {
+        return res
+          .status(404)
+          .json({ commentnotexists: "saved post does not exist" });
+      }
+      const removeIndex = userData.savedPosts
+        .map((post) => post._id.toString())
+        .indexOf(req.params.post_id);
+      userData.savedPosts.splice(removeIndex, 1);
+      userData.save().then((userDadta) => {
+        res.json(userData);
+      });
     });
   }
 );

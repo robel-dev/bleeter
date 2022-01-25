@@ -12,14 +12,6 @@ const PostSchema = new mongoose.Schema({
   },
   //image is added here
 
-  likes: [
-    {
-      userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "users",
-      },
-    },
-  ],
   name: {
     type: String,
   },
@@ -30,6 +22,14 @@ const PostSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  likes: [
+    {
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "users",
+      },
+    },
+  ],
   comments: [
     {
       userId: {
@@ -54,4 +54,7 @@ const PostSchema = new mongoose.Schema({
   ],
 });
 
-module.exports = Post = mongoose.model("posts", PostSchema);
+module.exports = {
+  Post: mongoose.model("posts", PostSchema),
+  Schema: PostSchema,
+};
