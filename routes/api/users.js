@@ -33,12 +33,12 @@ router.post("/test/image", (req, res) => {
 // @access   public
 router.post("/register", (req, res) => {
   const { errors, isValid } = validateRegisterationInput(req.body);
-  console.log("here" + req.body.email);
+
   //check if there is error
   if (!isValid) {
     return res.status(400).json(errors);
   }
-
+  console.log(req.body.email);
   User.findOne({ email: req.body.email })
     .then((user) => {
       if (user) {
