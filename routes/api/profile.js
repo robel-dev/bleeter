@@ -2,6 +2,7 @@ const express = require("express");
 const passport = require("passport");
 const User = require("../../models/user.model");
 const Profile = require("../../models/profile.model");
+const UserData = require("../../models/user.data.model");
 const router = express.Router();
 const mongoose = require("mongoose");
 
@@ -99,6 +100,31 @@ router.get("/user/:user_id", (req, res) => {
       res.status(404).json({ profile: "There is no profile for this user" })
     );
 });
+
+//------ TO BE CONTINUED----------
+// @route   GET api/profile/:handle/followers
+// @desc    Get all followers  of users
+// @access  Private
+router.get(
+  "/:handle/followers",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    const errors = {};
+
+    Profile.findOne({ handle: req.params.handle })
+      .then((profile) => {
+        if (!profile) {
+          errors.noprofile = "There is no profile for this user";
+          return res.status(404).json(errors);
+        }
+
+        res.json(profile);
+      })
+      .catch((err) =>
+        res.status(404).json({ profile: "There is no profile for this user" })
+      );
+  }
+);
 
 // @route   post api/profile
 // @desc    post profile route
@@ -214,6 +240,133 @@ router.post(
     });
   }
 );
+
+// @route   delete api/profile/:handle/follow
+// @desc    follow an account
+// @access  private
+router.post(
+  "/:handle/follow",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    //search for the follower profile
+    Profile.findOne({ userId: req.user.id }).then((followerProfile) => {
+      //search for the user to be followed by their handle
+      Profile.findOne({ handle: req.params.handle }).then(
+        (followingProfile) => {
+          // get follower user data
+          UserData.findOne({ userId: req.user.id }).then((followerUserData) => {
+            //get following user data to update the
+            UserData.findOne({ userId: followingProfile.userId }).then(
+              (followingUserData) => {
+                if (!followerUserData) {
+                  const newFollowingData = new UserData({
+                    userId: req.user.id,
+                  });
+                  newFollowingData.following.unshift({
+                    followingProfileId: followingProfile._id.toString(),
+                    followingUserId: followingProfile.userId,
+                  });
+                  newFollowingData.save().then((userData) => {
+                    res.json(userData);
+                  });
+                } else {
+                  //unfollow if it already exists
+                  if (
+                    followerUserData.following.filter(
+                      (following) =>
+                        following.followingUserId.toString() ===
+                        followingProfile.userId.toString()
+                    ).length > 0
+                  ) {
+                    //follow
+                    console.log("you cant follow anymore");
+                  } else {
+                    followerUserData.following.unshift({
+                      followingUserId: followingProfile.userId,
+                      followingProfileId: followingProfile._id.toString(),
+                    });
+                  }
+                  followerUserData.save().then((userData) => {
+                    res.json(userData);
+                  });
+                }
+                if (!followingUserData) {
+                  const newFollowerData = new UserData({
+                    userId: followingProfile.userId,
+                  });
+                  newFollowerData.followers.unshift({
+                    followerUserId: req.user.id,
+                    followerProfileId: followerProfile._id,
+                  });
+                  newFollowerData.save().then((userData) => {
+                    //res.json(userData);
+                    console.log("follower also updated");
+                  });
+                } else {
+                  if (
+                    followingUserData.followers.filter(
+                      (follower) =>
+                        follower.followerUserId.toString() == req.user.id
+                    ).length > 0
+                  ) {
+                    //remove from followers list
+                  } else {
+                    //if it exists TODO
+                    followingUserData.followers.unshift({
+                      followerUserId: req.user.id,
+                      followerProfileId: followerProfile._id,
+                    });
+                  }
+                  followingUserData.save().then((userData) => {
+                    //res.json(userData);
+                    console.log("follower also updated");
+                  });
+                }
+              }
+            );
+          });
+        }
+      );
+    });
+  }
+);
+//--- unfollow
+// @route   delete api/profile/:handle/unfollow
+// @desc    unfollow an account
+// @access  private
+router.post(
+  "/:handle/unfollow",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    //search for the profile to unfollow
+    Profile.findOne({ handle: req.params.handle }).then((unFollowProfile) => {
+      if (!unFollowProfile) {
+        return res.status(404).json({ msg: "Profile doesnt exist" });
+      }
+      //search for userdata using the userId in profile
+      UserData.findOne({ userId: unFollowProfile.userId }).then(
+        (unFollowUserData) => {
+          const removeIndex = unFollowUserData.followers
+            .map((follower) => follower.followerUserId)
+            .indexOf(req.user.id);
+          unFollowUserData.followers.splice(removeIndex, 1);
+          unFollowUserData
+            .save()
+            .then((result) => console.log("removed from followers"));
+        }
+      );
+      //search for current userdata using login status and use unfollow profile id
+      UserData.findOne({ userId: req.user.id }).then((userData) => {
+        const removeIndex = userData.following
+          .map((following) => following.followingUserId)
+          .indexOf(unFollowProfile.userId);
+        userData.following.splice(removeIndex, 1);
+        userData.save().then((userdata) => res.json(userdata));
+      });
+    });
+  }
+);
+//-------
 // @route   delete api/profile/experience/:exp_id
 // @desc    delete an experience
 // @access  private
